@@ -80,7 +80,7 @@ Catch both: `catch (\InvalidArgumentException | \RuntimeException $e)`, and read
 
 ## Production guard
 
-Outside `local`/`testing`: `turbo-seeder:run` asks for confirmation (`--force` skips it); `db:seed` or a direct `run()` is refused unless the builder calls `->force()`. A dry run is also subject to the guard. `turbo-seeder:benchmark` asks for confirmation but its internal seed does not set the guard binding or `force()`, so outside local/testing it is refused after the prompt, even with `--force` (verified on v1.0.0).
+Outside `local`/`testing`: `turbo-seeder:run` asks for confirmation (`--force` skips it); `db:seed` or a direct `run()` is refused unless the builder calls `->force()`. A dry run is also subject to the guard. `turbo-seeder:benchmark` asks for confirmation (`--force` skips it). On v1.0.0 its internal seed does not set the guard binding or `force()`, so outside local/testing it is refused even after confirming; this is fixed on the package's `master` after v1.0.0, so check `composer show` before relying on it.
 
 ## Config (`config/turbo-seeder.php`, publish tag `turbo-seeder-config`)
 

@@ -66,7 +66,19 @@ TurboSeeder::forTable('post_tag')
     ->run();
 ```
 
-`count()` must not exceed posts x tags. For fewer pairs per post, ask the user how many tags each post should get before choosing a scheme. Without a unique key on the pivot, the simple `$postIds($i)` / `$tagIds($i)` form is fine.
+`count()` must not exceed posts x tags. For exactly N tags per post (N not larger than the number of tags), use consecutive windows of the tag pool; the pool wraps, so the N tags of one post are distinct and no pair repeats:
+
+```php
+$perPost = 3;
+
+->generate(fn ($i) => [
+    'post_id' => $postIds(intdiv($i, $perPost)),
+    'tag_id' => $tagIds(intdiv($i, $perPost) * $perPost + $i % $perPost),
+])
+->count($postCount * $perPost)
+```
+
+If the user has not said how many tags each post should get, ask before choosing a scheme. Without a unique key on the pivot, the simple `$postIds($i)` / `$tagIds($i)` form is fine.
 
 ## Upsert (default strategy only)
 

@@ -45,5 +45,5 @@ If CSV is unavailable (config error), the package falls back to the default stra
 | Command | Purpose |
 |---|---|
 | `turbo-seeder:clear-cache [--all]` | Remove temporary CSV files (`--all` includes subdirectories). Temp path: `csv_strategy.temp_path` (default `storage/app/turbo-seeder`). |
-| `turbo-seeder:benchmark --records=N --connection=X --table=T [--force]` | Creates and drops its own temp table; refuses an existing table; confirms outside local/testing, but its internal seed is then refused by the production guard, even with `--force` (verified on v1.0.0). Run it only in local/testing. |
+| `turbo-seeder:benchmark --records=N --connection=X --table=T [--force]` | Creates and drops its own temp table; refuses an existing table; confirms outside local/testing. On v1.0.0 its internal seed is then refused by the production guard, even with `--force`; fixed on the package's `master` after v1.0.0. Run it only in local/testing unless the installed version includes the fix. |
 | `turbo-seeder:run Seeder` / `--class=Seeder` | Bare class names resolve under `seeder_classes_namespace`; a fully-qualified name bypasses it. |

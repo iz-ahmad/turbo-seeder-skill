@@ -42,24 +42,31 @@ $users = User::select('id')->get();
 TurboSeeder::fromFactory(Post::factory()->recycle($users))->count(1_000_000)->run();
 ```
 
-A factory using `->for(User::factory())` without `recycle()` triggers a warning because each row would run an Eloquent create.
+A factory using `->for(User::factory())` without `recycle()` triggers a warning because each row would run an Eloquent create. A factory whose `definition()` contains `'user_id' => User::factory()` has the same cost, `recycle()` fixes it too, and no warning is shown.
 
 Generator path: `$userIds = TurboData::fromTable(User::class);` then `'user_id' => $userIds($i)`.
 
 ## Has-many, belongs-to-many, pivots
 
-The parent's generated key is unavailable inside a single bulk call. Seed each table separately, in dependency order. For pivots, draw ids from both tables:
+The parent's generated key is unavailable inside a single bulk call. Seed each table separately, in dependency order. For pivots, draw ids from both tables. Two independently cycling pools repeat the same pair every lcm(posts, tags) rows, which violates a composite primary or unique key, so enumerate the pairs instead:
 
 ```php
+$postCount = DB::table('posts')->count();
+$tagCount = DB::table('tags')->count();
 $postIds = TurboData::fromTable('posts');
 $tagIds = TurboData::fromTable('tags');
 
 TurboSeeder::forTable('post_tag')
     ->columns(['post_id', 'tag_id'])
-    ->generate(fn ($i) => ['post_id' => $postIds($i), 'tag_id' => $tagIds($i)])
-    ->count(200_000)
+    ->generate(fn ($i) => [
+        'post_id' => $postIds(intdiv($i, $tagCount)),
+        'tag_id' => $tagIds($i % $tagCount),
+    ])
+    ->count($postCount * $tagCount)
     ->run();
 ```
+
+`count()` must not exceed posts x tags. For fewer pairs per post, ask the user how many tags each post should get before choosing a scheme. Without a unique key on the pivot, the simple `$postIds($i)` / `$tagIds($i)` form is fine.
 
 ## Upsert (default strategy only)
 
@@ -77,8 +84,10 @@ TurboSeeder::forTable('products')
 ## Dry run
 
 ```php
-$result = $builder->dryRun()->run();   // $result->isDryRun === true; nothing committed
+$result = $builder->count(1_000)->dryRun()->run();   // $result->isDryRun === true; nothing committed
 ```
+
+A dry run generates and inserts everything inside a transaction before rolling back, so use a small `count()` and then run the real count without `dryRun()`. The production guard applies to dry runs too.
 
 ## Time series
 
@@ -103,7 +112,9 @@ Register listeners for `TurboSeederStarting`, `TurboSeederCompleted`, `TurboSeed
 ```php
 try {
     $builder->run();
-} catch (\RuntimeException $e) {
-    $original = $e->getPrevious();   // the real cause, e.g. ProductionEnvironmentException
+} catch (\InvalidArgumentException | \RuntimeException $e) {
+    // builder validation throws InvalidArgumentException directly;
+    // execution failures are RuntimeException wrapping the real cause
+    $cause = $e->getPrevious() ?? $e;
 }
 ```

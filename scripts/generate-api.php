@@ -8,9 +8,23 @@ declare(strict_types=1);
  * iz-ahmad/laravel-turbo-seeder. Maintainer tooling; not shipped to agents.
  *
  * php scripts/generate-api.php --package=/path/to/package [--check]
+ *
+ * Exit codes: 0 in sync (or written), 1 out of sync (--check only), 2 tool error.
+ * Run with PHP 8.3 to match CI; type rendering can differ across PHP versions.
+ * The package's config file is executed, so only point this at trusted code.
  */
 
 const NAMESPACE_PREFIX = 'IzAhmad\\TurboSeeder\\';
+
+const UNDOCUMENTED_METHODS = [
+    'Builder\\TurboSeederBuilder' => ['option', 'options', 'toConfiguration', 'getTable', 'getColumns', 'getCount', 'getStrategy', 'getOptions'],
+    'Helpers\\TurboData' => ['resetNowOnce', 'resetHashedPasswords', 'reset', 'markGeneratorActive', 'isInsideGenerator'],
+];
+
+set_exception_handler(static function (Throwable $e): void {
+    fwrite(STDERR, 'generate-api failed: '.$e->getMessage()."\n");
+    exit(2);
+});
 
 $options = getopt('', ['package:', 'check']);
 $package = isset($options['package']) ? rtrim((string) $options['package'], '/') : '';
@@ -34,6 +48,16 @@ spl_autoload_register(static function (string $class) use ($package): void {
 function storage_path(string $path = ''): string
 {
     return 'storage_path/'.$path;
+}
+
+function base_path(string $path = ''): string
+{
+    return 'base_path/'.$path;
+}
+
+function env(string $key, mixed $default = null): mixed
+{
+    return $default;
 }
 
 function renderType(?ReflectionType $type): string
@@ -79,12 +103,14 @@ function renderMethod(ReflectionMethod $method): string
 /**
  * @return array<int, string>
  */
-function publicMethods(string $class): array
+function publicMethods(string $relativeClass): array
 {
+    $class = NAMESPACE_PREFIX.$relativeClass;
+    $excluded = UNDOCUMENTED_METHODS[$relativeClass] ?? [];
     $methods = [];
 
     foreach ((new ReflectionClass($class))->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
-        if ($method->isConstructor() || $method->getDeclaringClass()->getName() !== $class) {
+        if ($method->isConstructor() || $method->getDeclaringClass()->getName() !== $class || in_array($method->getName(), $excluded, true)) {
             continue;
         }
 
@@ -153,8 +179,8 @@ function blocks(string $package): array
     $config = (static fn (): array => require $package.'/config/turbo-seeder.php')();
 
     return [
-        'builder-methods' => publicMethods(NAMESPACE_PREFIX.'Builder\\TurboSeederBuilder'),
-        'turbodata-methods' => publicMethods(NAMESPACE_PREFIX.'Helpers\\TurboData'),
+        'builder-methods' => publicMethods('Builder\\TurboSeederBuilder'),
+        'turbodata-methods' => publicMethods('Helpers\\TurboData'),
         'config-keys' => flattenConfig($config),
         'commands' => commandSignatures($package),
     ];

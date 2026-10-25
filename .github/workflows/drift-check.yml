@@ -1,0 +1,68 @@
+name: "Drift Check"
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+
+    steps:
+      - name: Checkout skill
+        uses: actions/checkout@v4
+
+      - name: Resolve latest package release
+        id: release
+        run: echo "tag=$(gh api repos/iz-ahmad/laravel-turbo-seeder/releases/latest --jq .tag_name)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout package at the latest release
+        uses: actions/checkout@v4
+        with:
+          repository: iz-ahmad/laravel-turbo-seeder
+          ref: ${{ steps.release.outputs.tag }}
+          path: package
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+
+      - name: Compare generated signatures
+        id: signatures
+        continue-on-error: true
+        run: php scripts/generate-api.php --package=package --check
+
+      - name: Open an issue on drift
+        env:
+          LATEST: ${{ steps.release.outputs.tag }}
+          SIGNATURES: ${{ steps.signatures.outcome }}
+        run: |
+          verified="v$(grep -oP 'verified against v\K[0-9]+\.[0-9]+\.[0-9]+' skills/laravel-turbo-seeder/SKILL.md | head -1)"
+
+          if [ "$SIGNATURES" = "success" ] && [ "$verified" = "$LATEST" ]; then
+            echo "In sync with $LATEST."
+            exit 0
+          fi
+
+          gh label create drift --color D93F0B --description "Skill is out of sync with the package" 2>/dev/null || true
+
+          if [ -n "$(gh issue list --label drift --state open --json number --jq '.[0].number')" ]; then
+            echo "A drift issue is already open."
+            exit 0
+          fi
+
+          gh issue create \
+            --label drift \
+            --title "Re-verify skill against laravel-turbo-seeder $LATEST" \
+            --body "Skill is verified against \`$verified\`; latest package release is \`$LATEST\`. Signature check: \`$SIGNATURES\`. Run \`php scripts/generate-api.php --package=<path>\`, review the release notes for behaviour changes, update the hand-written references, then bump the verified version in SKILL.md, README.md and each reference file."

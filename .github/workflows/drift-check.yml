@@ -15,26 +15,30 @@ jobs:
     timeout-minutes: 10
 
     env:
-      GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
 
     steps:
       - name: Checkout skill
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Resolve latest package release
         id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: echo "tag=$(gh api repos/iz-ahmad/laravel-turbo-seeder/releases/latest --jq .tag_name)" >> "$GITHUB_OUTPUT"
 
       - name: Checkout package at the latest release
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: iz-ahmad/laravel-turbo-seeder
           ref: ${{ steps.release.outputs.tag }}
           path: package
+          persist-credentials: false
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
           php-version: '8.3'
 
@@ -45,6 +49,7 @@ jobs:
 
       - name: Open an issue on drift
         env:
+          GH_TOKEN: ${{ github.token }}
           LATEST: ${{ steps.release.outputs.tag }}
           SIGNATURES: ${{ steps.signatures.outcome }}
         run: |

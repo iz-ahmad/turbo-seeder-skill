@@ -45,7 +45,7 @@ Runtime guards: creating a stateful closure helper inside `generate()` logs a wa
 
 ## Generated signatures
 
-Regenerated from the package source by `scripts/generate-api.php`; do not edit by hand.
+Regenerated from the package source by the skill repo's maintainer script (not shipped with the installed skill); do not edit by hand.
 
 <!-- BEGIN GENERATED:turbodata-methods -->
 ```

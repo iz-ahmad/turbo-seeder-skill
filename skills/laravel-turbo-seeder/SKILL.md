@@ -33,10 +33,10 @@ The two choices are independent. Details: [builder-api](references/builder-api.m
 ## Workflow
 
 1. Run `php artisan turbo-seeder:test-connection [connection]` before choosing CSV or diagnosing a driver problem. It shows driver, server version and which strategies are supported. On MySQL it flags missing `ATTR_LOCAL_INFILE` and server `local_infile`. On SQLite it still reports CSV as supported; the advice to prefer the default strategy there comes from the README. See [csv-and-drivers](references/csv-and-drivers.md).
-2. Scaffold: `php artisan make:turbo-seeder NameSeeder --table=users --count=100000` (add `--factory=UserFactory` for the factory stub). Edit the generated file: it fills `*_id` columns with `randomInt(1, 100)` placeholders, which must become `TurboData::fromTable(...)` references.
+2. Scaffold: `php artisan make:turbo-seeder NameSeeder --table=users --count=100000` (add `--factory=UserFactory` for the factory stub). The stub covers one table and fills placeholders (`*_id` as `randomInt(1, 100)`, strings like "Status {$index}"). Replace all of them with realistic values, and `*_id` with `TurboData::fromTable(...)` references.
 3. Validate with `->dryRun()` and a small `count()` (for example 1,000) on a new or changed seeder, then run the real count. A dry run does the full generate and insert before rolling back, so do not dry-run millions of rows.
 4. Run: `php artisan turbo-seeder:run NameSeeder` (add `--force` only with user approval outside local/testing).
-5. Verify with `DB::table('t')->count()` and a sample row. `run()` throws on failure, so a returned result always has `success === true`; `$result->recordsInserted` is still worth reporting.
+5. Verify with `DB::table('t')->count()`, an orphan check on foreign keys, and a sample row (`php artisan tinker --execute='...'` works when no DB CLI is installed). `run()` throws on failure, so a returned result always has `success === true`; `$result->recordsInserted` is still worth reporting.
 
 ## Rules that prevent common failures
 
@@ -49,6 +49,7 @@ The two choices are independent. Details: [builder-api](references/builder-api.m
 - `upsert()` cannot be used with `useCsvStrategy()`; keys must match a unique/primary index.
 - `truncate()` cannot combine with `dryRun()`; `dryRun()` cannot combine with `withoutTransactions()`; `commitEvery()` cannot combine with `useTransactions()`.
 - `commitEvery()` leaves committed chunks in place on failure. Warn the user.
+- Parallel or multi-process seeding is not a documented feature. Do not build one; tell the user and ask.
 - Avoid `fake()->unique()` in factories at large counts (memory grows); use `generate()` with `TurboData::unique*`.
 - Outside local/testing every run is refused unless `turbo-seeder:run` is confirmed/`--force`d or the builder calls `->force()`. Never add `->force()` without explicit user approval.
 - Failures come in two shapes: builder-level validation throws `InvalidArgumentException` directly from `run()`; execution-time failures (missing table or column, NOT NULL gap, upsert key without a unique index, production guard, database errors) throw `RuntimeException` with the original as `getPrevious()`. Report the underlying message either way.

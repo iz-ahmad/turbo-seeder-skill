@@ -26,22 +26,22 @@ Runtime guards: creating a stateful closure helper inside `generate()` logs a wa
 | `dateRange(from, to)` | Random Carbon date in range. |
 | `sequentialDate(start, step, $index)` | Step is a bare unit: second, minute, hour, day, week, month. Logs a warning past the MySQL TIMESTAMP ceiling (2038-01-19); use DATETIME for later dates. |
 | `nowOnce()` | Current timestamp string, cached. |
-| `hashedPassword($plain = 'password')` | Hashed once, reused. Never hash per row. |
+| `hashedPassword($plain = 'password')` | Hashed once with `password_hash(PASSWORD_BCRYPT)` and reused; never hash per row. It bypasses the app's Hash driver, so the stored hash will not verify if the app is configured for argon. |
 | `uniqueEmail($domain = 'turbo.test')` | `u_<token>_<i>@domain` |
 | `uniqueUsername($prefix = 'usr')` | `usr_<token>_<i>` |
 | `uniqueSlug($base)` | `my-post-<token>-<i>` |
-| `uniqueUuid($prefix = '')` | Fresh UUID per call. |
+| `uniqueUuid($prefix = '')` | Returns a closure like the other `unique*` helpers (`'id' => TurboData::uniqueUuid()` without invoking it throws); a fresh UUID per call. |
 
 ## Reference pools (foreign keys)
 
-- `fromTable($tableOrModel, $column = 'id', $mode = 'cycle', $connection = null)`: loads the column once on first call, then O(1). Mode `cycle` or `random` (string or `FromTableMode` enum). Seed the referenced table first.
+- `fromTable($tableOrModel, $column = 'id', $mode = 'cycle', $connection = null)`: loads the column once on first call, then O(1). Mode `cycle` or `random` (string or `FromTableMode` enum). Seed the referenced table first. In `cycle` mode the value is `pool[$index % poolSize]`, so two cycling pools used together repeat the same pair every lcm(sizeA, sizeB) rows; see the pivot recipe for unique composite keys.
 - `fromQuery(fn () => [...])`: loader callback for filters/joins; returns a flat array.
 - `fromTableStream($tableOrModel, $column = 'id', pageSize: 10_000, $connection = null)`: keyset-paged, bounded memory; use for reference tables of 500k+ rows.
 - `fromTable` and `fromQuery` log a warning past ~500k values.
 
 ## Value formatting (automatic)
 
-`null` is NULL; `bool` is 1/0; int/float/string unchanged; DateTime/Carbon is `Y-m-d H:i:s`; BackedEnum is its value; UnitEnum is its name; array, Collection and object are JSON. Custom: `ValueFormatter::extend(Money::class, fn ($m) => $m->getAmount())` in a service provider.
+`null` is NULL; `bool` is 1/0; int/float/string unchanged; DateTime/Carbon is `Y-m-d H:i:s`; BackedEnum is its value; UnitEnum is its name; array, Collection and object are JSON. Custom (`IzAhmad\TurboSeeder\Services\ValueFormatter`): `ValueFormatter::extend(Money::class, fn ($m) => $m->getAmount())` in a service provider.
 
 ## Generated signatures
 
@@ -59,12 +59,7 @@ static nullable(float $probability, mixed $produce): mixed
 static dateRange(string $from, string $to): Carbon\Carbon
 static sequentialDate(string $start, string $step, int $index): Carbon\Carbon
 static nowOnce(): string
-static resetNowOnce(): void
 static hashedPassword(string $password = 'password'): string
-static resetHashedPasswords(): void
-static reset(): void
-static markGeneratorActive(bool $active): void
-static isInsideGenerator(): bool
 static fromTable(Illuminate\Database\Eloquent\Model|string $table, string $column = 'id', IzAhmad\TurboSeeder\Enums\FromTableMode|string $mode = IzAhmad\TurboSeeder\Enums\FromTableMode::CYCLE, ?string $connection = null): Closure
 static fromQuery(callable $loader): Closure
 static fromTableStream(Illuminate\Database\Eloquent\Model|string $table, string $column = 'id', int $pageSize = 10000, ?string $connection = null): Closure

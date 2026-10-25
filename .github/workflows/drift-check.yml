@@ -9,6 +9,10 @@ permissions:
   contents: read
   issues: write
 
+concurrency:
+  group: drift-check
+  cancel-in-progress: false
+
 jobs:
   drift:
     runs-on: ubuntu-latest
@@ -19,7 +23,7 @@ jobs:
 
     steps:
       - name: Checkout skill
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
 
@@ -27,10 +31,18 @@ jobs:
         id: release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: echo "tag=$(gh api repos/iz-ahmad/laravel-turbo-seeder/releases/latest --jq .tag_name)" >> "$GITHUB_OUTPUT"
+        run: |
+          tag=$(gh api repos/iz-ahmad/laravel-turbo-seeder/releases/latest --jq .tag_name) || tag=""
+
+          if [ -z "$tag" ]; then
+            echo "::error::No published release found for iz-ahmad/laravel-turbo-seeder"
+            exit 1
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Checkout package at the latest release
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           repository: iz-ahmad/laravel-turbo-seeder
           ref: ${{ steps.release.outputs.tag }}
@@ -38,27 +50,35 @@ jobs:
           persist-credentials: false
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: '8.3'
 
       - name: Compare generated signatures
         id: signatures
-        continue-on-error: true
-        run: php scripts/generate-api.php --package=package --check
+        run: |
+          set +e
+          php scripts/generate-api.php --package=package --check
+          echo "code=$?" >> "$GITHUB_OUTPUT"
 
       - name: Open an issue on drift
         env:
           GH_TOKEN: ${{ github.token }}
           LATEST: ${{ steps.release.outputs.tag }}
-          SIGNATURES: ${{ steps.signatures.outcome }}
+          CODE: ${{ steps.signatures.outputs.code }}
         run: |
-          verified="v$(grep -oP 'verified against v\K[0-9]+\.[0-9]+\.[0-9]+' skills/laravel-turbo-seeder/SKILL.md | head -1)"
+          stamps=$(grep -rhoP 'erified against.* v\K[0-9]+\.[0-9]+\.[0-9]+' skills README.md | sort -u)
 
-          if [ "$SIGNATURES" = "success" ] && [ "$verified" = "$LATEST" ]; then
+          if [ "$CODE" = "0" ] && [ "$stamps" = "${LATEST#v}" ]; then
             echo "In sync with $LATEST."
             exit 0
           fi
+
+          case "$CODE" in
+            0) reason="signatures match, but the verified version stamp is out of date" ;;
+            1) reason="generated signatures differ from the package" ;;
+            *) reason="the generator failed (exit $CODE); see the workflow run" ;;
+          esac
 
           gh label create drift --color D93F0B --description "Skill is out of sync with the package" 2>/dev/null || true
 
@@ -70,4 +90,4 @@ jobs:
           gh issue create \
             --label drift \
             --title "Re-verify skill against laravel-turbo-seeder $LATEST" \
-            --body "Skill is verified against \`$verified\`; latest package release is \`$LATEST\`. Signature check: \`$SIGNATURES\`. Run \`php scripts/generate-api.php --package=<path>\`, review the release notes for behaviour changes, update the hand-written references, then bump the verified version in SKILL.md, README.md and each reference file."
+            --body "Latest package release: \`$LATEST\`. Stamped versions found: \`$(echo $stamps)\`. Reason: $reason. Run \`php scripts/generate-api.php --package=<path>\`, review the release notes for behaviour changes, update the hand-written references, then bump the verified version in SKILL.md, README.md and each reference file."

@@ -88,7 +88,7 @@ Outside `local`/`testing`: `turbo-seeder:run` asks for confirmation (`--force` s
 
 ## Generated signatures
 
-Regenerated from the package source by `scripts/generate-api.php`; do not edit by hand. Accessors and raw-option methods (`option()`, `options()`, `toConfiguration()`, `getTable()` and similar) are left out because the package README does not document them.
+Regenerated from the package source by the skill repo's maintainer script (not shipped with the installed skill); do not edit by hand. Accessors and raw-option methods (`option()`, `options()`, `toConfiguration()`, `getTable()` and similar) are left out because the package README does not document them.
 
 ### Builder methods
 

@@ -20,19 +20,19 @@ Facade: `IzAhmad\TurboSeeder\Facades\TurboSeeder`. Table names must match letter
 | `columnsFromSchema()` | Opt-in. Needs the table set first. Every column except auto-incrementing keys. Generator must still fill NOT NULL columns. |
 | `generate(Closure)` | Receives `$index`, returns an associative array. |
 | `withTimestamps()` / `withoutTimestamps()` | Fills `created_at`/`updated_at` once per run if absent from the row. Default on for the factory path when the model uses timestamps; off for `generate()`. |
-| `withoutColumnValidation()` | Skips column-exists and NOT NULL coverage checks. Only when a trigger/DB default fills the gap. |
+| `withoutColumnValidation()` | Skips the table-exists, column-exists and NOT NULL coverage checks, and also the upsert unique-index check. Only when a trigger/DB default fills the gap. |
 
 ## Behaviour
 
 | Method | Notes |
 |---|---|
 | `count(int)` | Default 1000, minimum 1. |
-| `chunkSize(int)` | Minimum 1. Clamped to the driver bind limit (65,535 MySQL/PostgreSQL; SQLite auto-detected). Config default 1000 (mysql), 800 (pgsql), 500 (sqlite). |
+| `chunkSize(int)` | Minimum 1. Clamped so rows x columns stays within the driver bind limit (65,535 MySQL/PostgreSQL; SQLite auto-detected), so a wide table silently gets a smaller chunk than requested. Config default 1000 (mysql), 800 (pgsql), 500 (sqlite). |
 | `truncate()` | MySQL `TRUNCATE` with FK checks off (resets AUTO_INCREMENT); PostgreSQL/SQLite `DELETE` (identity sequences not reset). Committed immediately. |
 | `upsert(array $keys)` | Keys must be in the seeded columns and match a unique/primary index. Default strategy only. |
 | `dryRun()` | Generates and validates, rolls back. Always runs inside a transaction. |
 | `commitEvery(int $chunks)` | Default strategy only. No-op (warning logged) on CSV. No rollback of committed chunks on failure. |
-| `retryAttempts(int)` | 1-10, default 3. Retries transient deadlock/lock-timeout. |
+| `retryAttempts(int)` | 1-10, default 3. Retries transient deadlock/lock-timeout only when no transaction is open (for example `withoutTransactions()`). Inside the default wrapping transaction or `commitEvery()` a failed chunk is never retried. |
 | `force()` | Bypasses the production guard for this run. |
 | `when()` / `unless()` | Conditional chaining. |
 
@@ -41,28 +41,38 @@ Facade: `IzAhmad\TurboSeeder\Facades\TurboSeeder`. Table names must match letter
 | Method | Notes |
 |---|---|
 | `useCsvStrategy()` / `useDefaultStrategy()` / `strategy(SeederStrategy)` | Default is bulk INSERT. |
-| `disableForeignKeyChecks()` / `enableForeignKeyChecks()` | Config default: disabled during seeding. |
+| `disableForeignKeyChecks()` / `enableForeignKeyChecks()` | Config default: disabled during seeding. MySQL runs `SET FOREIGN_KEY_CHECKS=0` and SQLite `PRAGMA foreign_keys=OFF`, so orphan rows are inserted silently; PostgreSQL uses `SET CONSTRAINTS ALL DEFERRED`, which only affects deferrable constraints. Call `enableForeignKeyChecks()` to enforce them. |
 | `disableUniqueChecks()` / `enableUniqueChecks()` | MySQL only, opt-in, default off. Can admit duplicates into unique secondary indexes. |
 | `disableQueryLog()` / `enableQueryLog()` | Config default: disabled. |
 | `useTransactions()` / `withoutTransactions()` | Precedence: dry run (always on), explicit option, `commitEvery()` (off), CSV (off), config (`performance.use_transactions`, default true). |
 | `withProgressTracking()` / `withoutProgressTracking()` | Falls back to config `progress.enabled`. |
 | `connection(string)` | Overrides model/default connection. |
 
-## Conflicts that throw `InvalidArgumentException` before any row is written
+## Failures: two shapes
+
+**`InvalidArgumentException` thrown directly from `run()`** (builder validation and driver detection, before anything is written):
 
 - `upsert()` + `useCsvStrategy()`
-- upsert key not in `columns()`, or not backed by a unique/primary index
+- upsert key not in `columns()`
 - `truncate()` + `dryRun()`
 - `dryRun()` + `withoutTransactions()`
 - `commitEvery()` + `useTransactions()` (explicit true)
 - a generator value that is a raw `Closure` (helper not invoked)
-- missing table, generator, or `count < 1`; unknown column; uncovered NOT NULL column
+- missing table or generator, `count < 1`, invalid table/column name
+- unsupported driver (only `mysql`, `pgsql`/`postgresql` and `sqlite` are supported; `mariadb` and `sqlsrv` throw "Unsupported database driver")
 
-## Result and failures
+**`\RuntimeException` whose `getPrevious()` is the original exception** (everything that fails during execution, which is caught and rethrown by `run()`):
 
-`run()` returns `SeederResultDTO`: `success`, `recordsInserted`, `durationSeconds`, `peakMemoryBytes`, `isDryRun`, `errorMessage`, `exception`, `getRecordsPerSecond()`, `getPeakMemoryInMB()`, `toArray()`.
+- table missing in the database, unknown column, uncovered NOT NULL column (original is `InvalidArgumentException`)
+- upsert key not backed by a unique or primary index (original is `InvalidArgumentException`)
+- a refused production run (original is `ProductionEnvironmentException`)
+- database, CSV and generator errors
 
-Any failure, including a refused production run, is thrown from `run()` as `\RuntimeException` whose `getPrevious()` is the original exception. `durationSeconds` excludes truncate time.
+Catch both: `catch (\InvalidArgumentException | \RuntimeException $e)`, and read `$e->getPrevious() ?? $e` for the cause.
+
+## Result
+
+`run()` returns `SeederResultDTO` on success: `success`, `recordsInserted`, `durationSeconds`, `peakMemoryBytes`, `isDryRun`, `errorMessage`, `exception`, `getRecordsPerSecond()`, `getPeakMemoryInMB()`, `toArray()`. Because failures throw, a returned result always has `success === true`. `durationSeconds` excludes truncate time.
 
 ## Events
 
@@ -70,7 +80,7 @@ Any failure, including a refused production run, is thrown from `run()` as `\Run
 
 ## Production guard
 
-Outside `local`/`testing`: `turbo-seeder:run` asks for confirmation (`--force` skips it); `db:seed` or a direct `run()` is refused unless the builder calls `->force()`. `turbo-seeder:benchmark` also confirms and refuses an existing table.
+Outside `local`/`testing`: `turbo-seeder:run` asks for confirmation (`--force` skips it); `db:seed` or a direct `run()` is refused unless the builder calls `->force()`. A dry run is also subject to the guard. `turbo-seeder:benchmark` asks for confirmation but its internal seed does not set the guard binding or `force()`, so outside local/testing it is expected to be refused after the prompt; confirm on a real run before relying on it.
 
 ## Config (`config/turbo-seeder.php`, publish tag `turbo-seeder-config`)
 
@@ -78,7 +88,7 @@ Outside `local`/`testing`: `turbo-seeder:run` asks for confirmation (`--force` s
 
 ## Generated signatures
 
-Regenerated from the package source by `scripts/generate-api.php`; do not edit by hand.
+Regenerated from the package source by `scripts/generate-api.php`; do not edit by hand. Accessors and raw-option methods (`option()`, `options()`, `toConfiguration()`, `getTable()` and similar) are left out because the package README does not document them.
 
 ### Builder methods
 
@@ -110,8 +120,6 @@ enableQueryLog(): self
 useTransactions(bool $use = true): self
 withoutTransactions(): self
 commitEvery(int $chunks): self
-options(array $options): self
-option(string $key, mixed $value): self
 when(callable|bool $condition, callable $callback, ?callable $default = null): self
 dryRun(bool $enabled = true): self
 upsert(array $uniqueBy): self
@@ -119,12 +127,6 @@ retryAttempts(int $attempts): self
 withoutColumnValidation(): self
 unless(callable|bool $condition, callable $callback, ?callable $default = null): self
 run(): IzAhmad\TurboSeeder\DTOs\SeederResultDTO
-toConfiguration(): IzAhmad\TurboSeeder\DTOs\SeederConfigurationDTO
-getTable(): ?string
-getColumns(): array
-getCount(): int
-getStrategy(): IzAhmad\TurboSeeder\Enums\SeederStrategy
-getOptions(): array
 ```
 <!-- END GENERATED:builder-methods -->
 
@@ -160,6 +162,8 @@ max_error_message_length_in_console = 600
 <!-- END GENERATED:config-keys -->
 
 ### Artisan commands
+
+`make:turbo-seeder` options (declared outside the signature, so not shown below): `--table=`, `--count=` (default 1000), `--factory=` (optional factory class), `--force` (overwrite).
 
 <!-- BEGIN GENERATED:commands -->
 ```

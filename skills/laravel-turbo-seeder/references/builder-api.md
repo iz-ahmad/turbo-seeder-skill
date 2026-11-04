@@ -1,6 +1,6 @@
 # Builder API
 
-Verified against `iz-ahmad/laravel-turbo-seeder` v1.0.0. The installed README wins on any difference.
+Verified against `iz-ahmad/laravel-turbo-seeder` v1.1.0. The installed README wins on any difference.
 
 ## Entry points
 
@@ -11,6 +11,8 @@ Verified against `iz-ahmad/laravel-turbo-seeder` v1.0.0. The installed README wi
 | builder `->table(...)` | Same as `forTable()`, builder method only. |
 
 Facade: `IzAhmad\TurboSeeder\Facades\TurboSeeder`. Table names must match letters/digits/underscore with an optional single `schema.` prefix. Column names: letters, digits, underscore. A Model argument also sets the connection unless `connection()` is called (explicit wins). For a factory whose model is on a non-default connection, pass `connection()` explicitly; automatic handling on the factory path is not documented.
+
+Connection table prefix: the strategies' raw SQL ignored it through v1.0.2. From v1.1.0 pass the table name without the prefix, as with `DB::table()`; support covers both strategies, `upsert()`, `truncate()` and `turbo-seeder:benchmark`, and the prefix may only contain letters, digits and underscores (anything else makes `run()` throw `InvalidArgumentException` before anything is written).
 
 ## Data
 
@@ -36,6 +38,8 @@ Facade: `IzAhmad\TurboSeeder\Facades\TurboSeeder`. Table names must match letter
 | `force()` | Bypasses the production guard for this run. |
 | `when()` / `unless()` | Conditional chaining. |
 
+PostgreSQL sequences: explicit values for an auto-increment `id` left its sequence behind through v1.0.2, so a later insert without an id failed with a duplicate key. From v1.1.0, after a successful non-dry run on PostgreSQL (both strategies), each seeded serial or identity column's sequence is advanced to `MAX(column)`; it is never lowered. If that step fails (for example no UPDATE privilege on the sequence) a warning is logged and the seed still succeeds. MySQL and SQLite need nothing.
+
 ## Strategy and tuning
 
 | Method | Notes |
@@ -60,6 +64,7 @@ Facade: `IzAhmad\TurboSeeder\Facades\TurboSeeder`. Table names must match letter
 - a generator value that is a raw `Closure` (helper not invoked)
 - missing table or generator, `count < 1`, invalid table/column name
 - unsupported driver (only `mysql`, `pgsql`/`postgresql` and `sqlite` are supported; `mariadb` and `sqlsrv` throw "Unsupported database driver")
+- a connection table `prefix` with characters other than letters, digits and underscores (v1.1.0+)
 
 **`\RuntimeException` whose `getPrevious()` is the original exception** (everything that fails during execution, which is caught and rethrown by `run()`):
 
@@ -80,7 +85,7 @@ Catch both: `catch (\InvalidArgumentException | \RuntimeException $e)`, and read
 
 ## Production guard
 
-Outside `local`/`testing`: `turbo-seeder:run` asks for confirmation (`--force` skips it); `db:seed` or a direct `run()` is refused unless the builder calls `->force()`. A dry run is also subject to the guard. `turbo-seeder:benchmark` asks for confirmation (`--force` skips it). On v1.0.0 its internal seed does not set the guard binding or `force()`, so outside local/testing it is refused even after confirming; this is fixed on the package's `master` after v1.0.0, so check `composer show` before relying on it.
+Outside `local`/`testing`: `turbo-seeder:run` asks for confirmation (`--force` skips it); `db:seed` or a direct `run()` is refused unless the builder calls `->force()`. A dry run is also subject to the guard. `turbo-seeder:benchmark` asks for confirmation (`--force` skips it). On v1.0.0 its internal seed did not set the guard binding or `force()`, so outside local/testing it was refused even after confirming; this is fixed in v1.0.1, so check `composer show` before relying on it.
 
 ## Config (`config/turbo-seeder.php`, publish tag `turbo-seeder-config`)
 

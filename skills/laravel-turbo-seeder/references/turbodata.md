@@ -1,6 +1,6 @@
 # TurboData helpers
 
-Verified against `iz-ahmad/laravel-turbo-seeder` v1.0.0. Import: `IzAhmad\TurboSeeder\Helpers\TurboData`.
+Verified against `iz-ahmad/laravel-turbo-seeder` v1.1.0. Import: `IzAhmad\TurboSeeder\Helpers\TurboData`.
 
 ## Three calling conventions
 

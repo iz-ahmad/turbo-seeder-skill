@@ -1,6 +1,6 @@
 # CSV strategy and drivers
 
-Verified against `iz-ahmad/laravel-turbo-seeder` v1.0.2. The installed README wins on any difference.
+Verified against `iz-ahmad/laravel-turbo-seeder` v1.1.0. The installed README wins on any difference.
 
 ## Support matrix
 

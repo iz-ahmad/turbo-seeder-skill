@@ -1,6 +1,6 @@
 # Builder API
 
-Verified against `iz-ahmad/laravel-turbo-seeder` v1.0.0. The installed README wins on any difference.
+Verified against `iz-ahmad/laravel-turbo-seeder` v1.0.2. The installed README wins on any difference.
 
 ## Entry points
 
@@ -11,6 +11,8 @@ Verified against `iz-ahmad/laravel-turbo-seeder` v1.0.0. The installed README wi
 | builder `->table(...)` | Same as `forTable()`, builder method only. |
 
 Facade: `IzAhmad\TurboSeeder\Facades\TurboSeeder`. Table names must match letters/digits/underscore with an optional single `schema.` prefix. Column names: letters, digits, underscore. A Model argument also sets the connection unless `connection()` is called (explicit wins). For a factory whose model is on a non-default connection, pass `connection()` explicitly; automatic handling on the factory path is not documented.
+
+Connection table prefix: pass the table name without the prefix, as with `DB::table()`. Through v1.0.2 the strategies' raw SQL ignored the prefix; support is on `master` after v1.0.2 and is documented in a README "Table Prefixes" section. It covers both strategies, `upsert()`, `truncate()` and `turbo-seeder:benchmark`. The prefix may only contain letters, digits and underscores; anything else makes `run()` throw `InvalidArgumentException` before anything is written.
 
 ## Data
 
@@ -80,7 +82,7 @@ Catch both: `catch (\InvalidArgumentException | \RuntimeException $e)`, and read
 
 ## Production guard
 
-Outside `local`/`testing`: `turbo-seeder:run` asks for confirmation (`--force` skips it); `db:seed` or a direct `run()` is refused unless the builder calls `->force()`. A dry run is also subject to the guard. `turbo-seeder:benchmark` asks for confirmation (`--force` skips it). On v1.0.0 its internal seed does not set the guard binding or `force()`, so outside local/testing it is refused even after confirming; this is fixed on the package's `master` after v1.0.0, so check `composer show` before relying on it.
+Outside `local`/`testing`: `turbo-seeder:run` asks for confirmation (`--force` skips it); `db:seed` or a direct `run()` is refused unless the builder calls `->force()`. A dry run is also subject to the guard. `turbo-seeder:benchmark` asks for confirmation (`--force` skips it). On v1.0.0 its internal seed did not set the guard binding or `force()`, so outside local/testing it was refused even after confirming; this is fixed in v1.0.1, so check `composer show` before relying on it.
 
 ## Config (`config/turbo-seeder.php`, publish tag `turbo-seeder-config`)
 

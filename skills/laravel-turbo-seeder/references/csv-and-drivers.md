@@ -38,7 +38,7 @@ If CSV is unavailable (config error), the package falls back to the default stra
 
 ## Null handling
 
-`csv_strategy.null_marker` (default `\N`) applies to MySQL and SQLite CSV only; PostgreSQL ignores it. On those two drivers, if real data equals the marker the run throws instead of importing it as NULL. From v1.0.2 the exact string `NULL` and an empty string in a single-column table are written quoted, so they import as data. On v1.0.0-v1.0.1 the MySQL CSV strategy silently imported the string `NULL` as SQL NULL and the SQLite CSV strategy imported an empty string in a single-column table as NULL; if the data can contain either and the installed version is older, prefer the default strategy or ask the user to upgrade.
+`csv_strategy.null_marker` (default `\N`) applies to MySQL and SQLite CSV only; PostgreSQL ignores it. On those two drivers, if real data equals the marker the run throws instead of importing it as NULL. On those drivers, from v1.0.2 the exact string `NULL` and an empty string in a single-column table are written quoted, so they import as data. On v1.0.0-v1.0.1 the MySQL CSV strategy silently imported the string `NULL` as SQL NULL and the SQLite CSV strategy imported an empty string in a single-column table as NULL; if the data can contain either and the installed version is older, prefer the default strategy or ask the user to upgrade.
 
 ## Other commands
 

@@ -5,7 +5,7 @@ description: Seed large datasets in Laravel with the iz-ahmad/laravel-turbo-seed
 
 # Laravel Turbo Seeder
 
-Targets `iz-ahmad/laravel-turbo-seeder` `^1.0` (reference files verified against v1.0.0). Requires PHP 8.2-8.5, Laravel 10-13, and a MySQL, PostgreSQL or SQLite connection (other drivers throw).
+Targets `iz-ahmad/laravel-turbo-seeder` `^1.0` (reference files verified against v1.0.2). Requires PHP 8.2-8.5, Laravel 10-13, and a MySQL, PostgreSQL or SQLite connection (other drivers throw).
 
 ## Ground rules
 
@@ -15,9 +15,9 @@ Targets `iz-ahmad/laravel-turbo-seeder` `^1.0` (reference files verified against
 
 ## Before writing code
 
-1. `composer show iz-ahmad/laravel-turbo-seeder`. Not installed: ask before `composer require`. Version below 1.0 or newer than v1.0.0: say so.
+1. `composer show iz-ahmad/laravel-turbo-seeder`. Not installed: ask before `composer require`. Version below 1.0 or newer than v1.0.2: say so.
 2. Read `vendor/iz-ahmad/laravel-turbo-seeder/README.md`.
-3. Confirm with the user if unknown: target tables/models, row counts, DB driver, environment (local vs production), whether truncating is allowed, whether foreign key checks may stay off (they are off by default).
+3. Confirm with the user if unknown: target tables/models, row counts, DB driver, environment (local vs production), whether truncating is allowed, whether foreign key checks may stay off (they are off by default), and whether the connection defines a table `prefix`.
 
 ## Choose path and strategy
 
@@ -47,6 +47,7 @@ The two choices are independent. Details: [builder-api](references/builder-api.m
 - Model events, observers and accessors/mutators do not run. Put derived values in the factory or generator.
 - Every NOT NULL column without a DB default must be seeded, or the run fails before writing.
 - `upsert()` cannot be used with `useCsvStrategy()`; keys must match a unique/primary index.
+- A connection `prefix` was ignored by the strategies' raw SQL through v1.0.2 (runs fail with "table doesn't exist"). Support is on `master` after v1.0.2: only use it if the installed README has a "Table Prefixes" section, pass the table name without the prefix, and otherwise tell the user.
 - `truncate()` cannot combine with `dryRun()`; `dryRun()` cannot combine with `withoutTransactions()`; `commitEvery()` cannot combine with `useTransactions()`.
 - `commitEvery()` leaves committed chunks in place on failure. Warn the user.
 - Parallel or multi-process seeding is not a documented feature. Do not build one; tell the user and ask.

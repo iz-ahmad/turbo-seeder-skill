@@ -1,6 +1,6 @@
 # Recipes
 
-Verified against `iz-ahmad/laravel-turbo-seeder` v1.0.2. Adapt table, column and model names to the user's project; confirm them first.
+Verified against `iz-ahmad/laravel-turbo-seeder` v1.1.0. Adapt table, column and model names to the user's project; confirm them first.
 
 ## Migrate a slow seeder
 

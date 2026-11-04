@@ -12,7 +12,7 @@ Verified against `iz-ahmad/laravel-turbo-seeder` v1.0.2. The installed README wi
 
 Facade: `IzAhmad\TurboSeeder\Facades\TurboSeeder`. Table names must match letters/digits/underscore with an optional single `schema.` prefix. Column names: letters, digits, underscore. A Model argument also sets the connection unless `connection()` is called (explicit wins). For a factory whose model is on a non-default connection, pass `connection()` explicitly; automatic handling on the factory path is not documented.
 
-Connection table prefix: pass the table name without the prefix, as with `DB::table()`. Through v1.0.2 the strategies' raw SQL ignored the prefix; support is on `master` after v1.0.2 and is documented in a README "Table Prefixes" section. It covers both strategies, `upsert()`, `truncate()` and `turbo-seeder:benchmark`. The prefix may only contain letters, digits and underscores; anything else makes `run()` throw `InvalidArgumentException` before anything is written.
+Connection table prefix: through v1.0.2 the strategies' raw SQL ignored it. Where the installed README has a "Table Prefixes" section, pass the table name without the prefix, as with `DB::table()`; support covers both strategies, `upsert()`, `truncate()` and `turbo-seeder:benchmark`, and the prefix may only contain letters, digits and underscores (anything else makes `run()` throw `InvalidArgumentException` before anything is written).
 
 ## Data
 
@@ -62,6 +62,7 @@ Connection table prefix: pass the table name without the prefix, as with `DB::ta
 - a generator value that is a raw `Closure` (helper not invoked)
 - missing table or generator, `count < 1`, invalid table/column name
 - unsupported driver (only `mysql`, `pgsql`/`postgresql` and `sqlite` are supported; `mariadb` and `sqlsrv` throw "Unsupported database driver")
+- a connection table `prefix` with characters other than letters, digits and underscores (only where the installed README documents prefix support)
 
 **`\RuntimeException` whose `getPrevious()` is the original exception** (everything that fails during execution, which is caught and rethrown by `run()`):
 

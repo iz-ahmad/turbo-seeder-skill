@@ -8,7 +8,7 @@ An agent skill that teaches coding agents to use [`iz-ahmad/laravel-turbo-seeder
 npx skills add iz-ahmad/turbo-seeder-skill
 ```
 
-Targets package `^1.0` (verified against v1.0.0).
+Targets package `^1.0` (verified against v1.0.2).
 
 ## What it covers
 

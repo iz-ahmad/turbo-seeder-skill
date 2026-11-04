@@ -1,6 +1,6 @@
 # CSV strategy and drivers
 
-Verified against `iz-ahmad/laravel-turbo-seeder` v1.0.0. The installed README wins on any difference.
+Verified against `iz-ahmad/laravel-turbo-seeder` v1.0.2. The installed README wins on any difference.
 
 ## Support matrix
 
@@ -38,12 +38,12 @@ If CSV is unavailable (config error), the package falls back to the default stra
 
 ## Null handling
 
-`csv_strategy.null_marker` (default `\N`) applies to MySQL and SQLite CSV only; PostgreSQL ignores it. On those two drivers, if real data equals the marker the run throws instead of importing it as NULL.
+`csv_strategy.null_marker` (default `\N`) applies to MySQL and SQLite CSV only; PostgreSQL ignores it. On those two drivers, if real data equals the marker the run throws instead of importing it as NULL. From v1.0.2 the exact string `NULL` and an empty string in a single-column table are written quoted, so they import as data. On v1.0.0-v1.0.1 the MySQL CSV strategy silently imported the string `NULL` as SQL NULL and the SQLite CSV strategy imported an empty string in a single-column table as NULL; if the data can contain either and the installed version is older, prefer the default strategy or ask the user to upgrade.
 
 ## Other commands
 
 | Command | Purpose |
 |---|---|
 | `turbo-seeder:clear-cache [--all]` | Remove temporary CSV files (`--all` includes subdirectories). Temp path: `csv_strategy.temp_path` (default `storage/app/turbo-seeder`). |
-| `turbo-seeder:benchmark --records=N --connection=X --table=T [--force]` | Creates and drops its own temp table; refuses an existing table; confirms outside local/testing. On v1.0.0 its internal seed is then refused by the production guard, even with `--force`; fixed on the package's `master` after v1.0.0. Run it only in local/testing unless the installed version includes the fix. |
+| `turbo-seeder:benchmark --records=N --connection=X --table=T [--force]` | Creates and drops its own temp table; refuses an existing table; confirms outside local/testing. On v1.0.0 its internal seed was then refused by the production guard, even with `--force`; fixed in v1.0.1. On v1.0.0 run it only in local/testing. |
 | `turbo-seeder:run Seeder` / `--class=Seeder` | Bare class names resolve under `seeder_classes_namespace`; a fully-qualified name bypasses it. |

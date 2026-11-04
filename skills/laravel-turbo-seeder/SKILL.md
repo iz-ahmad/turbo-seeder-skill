@@ -47,7 +47,7 @@ The two choices are independent. Details: [builder-api](references/builder-api.m
 - Model events, observers and accessors/mutators do not run. Put derived values in the factory or generator.
 - Every NOT NULL column without a DB default must be seeded, or the run fails before writing.
 - `upsert()` cannot be used with `useCsvStrategy()`; keys must match a unique/primary index.
-- A connection `prefix` was ignored by the strategies' raw SQL through v1.0.2 (runs fail with "table doesn't exist"). Support is on `master` after v1.0.2: only use it if the installed README has a "Table Prefixes" section, pass the table name without the prefix, and otherwise tell the user.
+- A connection `prefix` was ignored by the strategies' raw SQL through v1.0.2 (runs fail with "table doesn't exist"). Seed a prefixed connection only if the installed README has a "Table Prefixes" section, and pass the table name without the prefix. Otherwise tell the user and ask how to proceed (for example upgrade); do not silently switch to `DB::table()->insert()`.
 - `truncate()` cannot combine with `dryRun()`; `dryRun()` cannot combine with `withoutTransactions()`; `commitEvery()` cannot combine with `useTransactions()`.
 - `commitEvery()` leaves committed chunks in place on failure. Warn the user.
 - Parallel or multi-process seeding is not a documented feature. Do not build one; tell the user and ask.

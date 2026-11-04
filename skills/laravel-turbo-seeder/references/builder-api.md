@@ -1,6 +1,6 @@
 # Builder API
 
-Verified against `iz-ahmad/laravel-turbo-seeder` v1.0.2. The installed README wins on any difference.
+Verified against `iz-ahmad/laravel-turbo-seeder` v1.1.0. The installed README wins on any difference.
 
 ## Entry points
 
@@ -12,7 +12,7 @@ Verified against `iz-ahmad/laravel-turbo-seeder` v1.0.2. The installed README wi
 
 Facade: `IzAhmad\TurboSeeder\Facades\TurboSeeder`. Table names must match letters/digits/underscore with an optional single `schema.` prefix. Column names: letters, digits, underscore. A Model argument also sets the connection unless `connection()` is called (explicit wins). For a factory whose model is on a non-default connection, pass `connection()` explicitly; automatic handling on the factory path is not documented.
 
-Connection table prefix: through v1.0.2 the strategies' raw SQL ignored it. Where the installed README has a "Table Prefixes" section, pass the table name without the prefix, as with `DB::table()`; support covers both strategies, `upsert()`, `truncate()` and `turbo-seeder:benchmark`, and the prefix may only contain letters, digits and underscores (anything else makes `run()` throw `InvalidArgumentException` before anything is written).
+Connection table prefix: the strategies' raw SQL ignored it through v1.0.2. From v1.1.0 pass the table name without the prefix, as with `DB::table()`; support covers both strategies, `upsert()`, `truncate()` and `turbo-seeder:benchmark`, and the prefix may only contain letters, digits and underscores (anything else makes `run()` throw `InvalidArgumentException` before anything is written).
 
 ## Data
 
@@ -38,6 +38,8 @@ Connection table prefix: through v1.0.2 the strategies' raw SQL ignored it. Wher
 | `force()` | Bypasses the production guard for this run. |
 | `when()` / `unless()` | Conditional chaining. |
 
+PostgreSQL sequences: explicit values for an auto-increment `id` left its sequence behind through v1.0.2, so a later insert without an id failed with a duplicate key. From v1.1.0, after a successful non-dry run on PostgreSQL (both strategies), each seeded serial or identity column's sequence is advanced to `MAX(column)`; it is never lowered. If that step fails (for example no UPDATE privilege on the sequence) a warning is logged and the seed still succeeds. MySQL and SQLite need nothing.
+
 ## Strategy and tuning
 
 | Method | Notes |
@@ -62,7 +64,7 @@ Connection table prefix: through v1.0.2 the strategies' raw SQL ignored it. Wher
 - a generator value that is a raw `Closure` (helper not invoked)
 - missing table or generator, `count < 1`, invalid table/column name
 - unsupported driver (only `mysql`, `pgsql`/`postgresql` and `sqlite` are supported; `mariadb` and `sqlsrv` throw "Unsupported database driver")
-- a connection table `prefix` with characters other than letters, digits and underscores (only where the installed README documents prefix support)
+- a connection table `prefix` with characters other than letters, digits and underscores (v1.1.0+)
 
 **`\RuntimeException` whose `getPrevious()` is the original exception** (everything that fails during execution, which is caught and rethrown by `run()`):
 
